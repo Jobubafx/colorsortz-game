@@ -1,186 +1,139 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <title>Color Sort Game</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f9f9f9;
       text-align: center;
-      background: #e0f7fa;
-      margin: 0;
-      padding: 20px;
     }
-
-    h1 { color: #00796b; }
-
     #game {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 10px;
-      margin-top: 20px;
+      margin: 20px;
     }
-
     .tube {
       width: 60px;
-      height: 150px;
-      background: #fff;
-      border: 2px solid #00796b;
+      height: 240px;
+      margin: 10px;
+      border: 2px solid #ccc;
       border-radius: 10px;
+      background: #fff;
       display: flex;
       flex-direction: column-reverse;
       justify-content: flex-start;
       align-items: center;
-      padding: 5px;
     }
-
-    .ball {
-      width: 40px;
-      height: 40px;
-      margin: 2px;
-      border-radius: 50%;
-      border: 1px solid #444;
+    .color {
+      width: 50px;
+      height: 50px;
+      margin: 2px 0;
+      border-radius: 6px;
     }
-
-    #coins {
+    #coin, #level, #message {
       font-size: 18px;
-      margin-top: 10px;
+      margin: 8px;
     }
-
     #ad {
-      margin-top: 20px;
-      background: #eee;
-      padding: 10px;
+      margin: 20px auto;
+      width: 300px;
+      height: 250px;
+      background: #e0e0e0;
       display: none;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+    }
+    button {
+      margin: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>🎨 Color Sortz</h1>
-  
-  <div id="coins">💰 Coins: <span id="coinCount">0</span></div>
-
+  <h2>Color Sort Game 🎨</h2>
+  <div id="coin">Coins: 0</div>
+  <div id="level">Level: 1</div>
+  <div id="message"></div>
   <div id="game"></div>
-<button onclick="startNewLevel()" style="margin-top: 10px; padding: 10px 20px; font-size: 16px; background: #00796b; color: white; border: none; border-radius: 8px;">
-  🔁 Restart
-</button>
-  
+
+  <!-- 🔁 Restart Button -->
+  <button onclick="startNewLevel()">🔁 Restart</button>
+
   <!-- ⏭ Skip Level Button -->
-<button onclick="skipLevel()" style="margin-top: 10px; padding: 10px 20px; font-size: 16px; background: #f57c00; color: white; border: none; border-radius: 8px;">
-  ⏭ Skip Level (Watch Ad)
-</button>
-  <div id="ad">
-    <p>📺 Watching ad... Please wait</p>
-    <!-- Replace below with real Monetag ad script -->
-    <script type="text/javascript">
-      setTimeout(() => {
-        alert("Ad finished! You earned coins.");
-        document.getElementById('ad').style.display = 'none';
-        addCoins(5);
-        startNewLevel();
-      }, 5000); // Simulate 5s ad
-    </script>
-  </div>
+  <button onclick="skipLevel()">⏭ Skip Level (Watch Ad)</button>
+
+  <div id="ad">📺 Watching Ad...</div>
 
   <script>
+    let coins = 0;
     let tubes = [];
-    let colors = ['red', 'blue', 'green', 'yellow'];
-    let coinCount = 0;
-let currentLevel = 1;
-    const gameDiv = document.getElementById("game");
-    const coinDisplay = document.getElementById("coinCount");
+    let selectedTube = null;
+    let currentLevel = 1;
 
-    function createTubes() {
-      gameDiv.innerHTML = '';
-      tubes = [];
-      for (let i = 0; i < 3; i++) {
-        let tube = document.createElement("div");
-        tube.className = "tube";
-        tube.dataset.index = i;
-        tube.onclick = () => handleTubeClick(i);
-        gameDiv.appendChild(tube);
-        tubes.push(tube);
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
       }
-
-      // Fill tubes randomly
-      let balls = [];
-      colors.forEach(color => {
-        balls.push(color, color);
-      });
-
-      balls.sort(() => Math.random() - 0.5);
-      for (let i = 0; i < balls.length; i++) {
-        const ball = document.createElement("div");
-        ball.className = "ball";
-        ball.style.background = balls[i];
-        tubes[i % 4].appendChild(ball);
-      }
-    }
-
-    let selected = null;
-
-    function handleTubeClick(index) {
-      const tube = tubes[index];
-      const balls = tube.children;
-      if (selected === null) {
-        if (balls.length === 0) return;
-        selected = index;
-        tubes[index].style.border = '2px solid orange';
-      } else {
-        if (index === selected) {
-          tubes[index].style.border = '2px solid #00796b';
-          selected = null;
-          return;
-        }
-
-        const fromTube = tubes[selected];
-        const toTube = tubes[index];
-
-        const fromBalls = fromTube.children;
-        const toBalls = toTube.children;
-
-        if (fromBalls.length === 0 || toBalls.length >= 4) return;
-
-        const ballToMove = fromBalls[fromBalls.length - 1];
-        if (toBalls.length === 0 || ballToMove.style.background === toBalls[toBalls.length - 1].style.background) {
-          toTube.appendChild(ballToMove);
-          fromTube.style.border = '2px solid #00796b';
-          selected = null;
-          checkWin();
-        } else {
-          fromTube.style.border = '2px solid #00796b';
-          selected = null;
-        }
-      }
-    }
-
-    function checkWin() {
-      let won = tubes.every(tube => {
-        if (tube.children.length === 0) return true;
-        const color = tube.children[0].style.background;
-        return Array.from(tube.children).every(ball => ball.style.background === color);
-      });
-
-      if (won) {
-        showAd(); // simulate ad between levels
-      }
-    }
-    function showAd() {
-      document.getElementById("ad").style.display = 'block';
     }
 
     function addCoins(amount) {
-      coinCount += amount;
-      coinDisplay.innerText = coinCount;
+      coins += amount;
+      updateCoinsDisplay();
+    }
+
+    function updateCoinsDisplay() {
+      document.getElementById("coin").innerText = "Coins: " + coins;
+    }
+
+    function updateLevelDisplay() {
+      document.getElementById("level").innerText = "Level: " + currentLevel;
+    }
+
+    function renderTubes() {
+      const game = document.getElementById("game");
+      game.innerHTML = '';
+      tubes.forEach((tube, i) => {
+        const tubeDiv = document.createElement("div");
+        tubeDiv.className = "tube";
+        tubeDiv.onclick = () => handleTubeClick(i);
+        tube.forEach(color => {
+          const colorDiv = document.createElement("div");
+          colorDiv.className = "color";
+          colorDiv.style.backgroundColor = getColor(color);
+          tubeDiv.appendChild(colorDiv);
+        });
+        game.appendChild(tubeDiv);
+      });
+    }
+
+    function getColor(num) {
+      const colors = ["red", "blue", "green", "yellow", "purple", "orange", "cyan", "magenta", "lime", "pink"];
+      return colors[num % colors.length];
     }
 
     function startNewLevel() {
-      createTubes();
-    }
+      document.getElementById("game").innerHTML = '';
+      document.getElementById("message").innerText = '';
+      document.getElementById("ad").style.display = 'none';
 
-    createTubes();
-  </script>
-</body>
-</html>
+      const numColors = Math.min(5 + Math.floor(currentLevel / 2), 10); // More colors as level increases
+      const numTubes = numColors + 2;
+
+      tubes = Array.from({ length: numTubes }, () => []);
+      let colors = [];
+      for (let i = 0; i < numColors; i++) {
+        for (let j = 0; j < 4; j++) {
+          colors.push(i);
+        }
+      }
+
+      shuffle(colors);
+
+      let index = 0;
+      for (let i = 0; i < numColors; i++) {
+        for (let j = 0; j < 4; j++) {
+          tubes[i].push(colors[index++]);
