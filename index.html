@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Color Sort Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #e0f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 { color: #00796b; }
+
+    #game {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .tube {
+      width: 60px;
+      height: 150px;
+      background: #fff;
+      border: 2px solid #00796b;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column-reverse;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 5px;
+    }
+
+    .ball {
+      width: 40px;
+      height: 40px;
+      margin: 2px;
+      border-radius: 50%;
+      border: 1px solid #444;
+    }
+
+    #coins {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+
+    #ad {
+      margin-top: 20px;
+      background: #eee;
+      padding: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 Color Sort Game</h1>
+  <div id="coins">💰 Coins: <span id="coinCount">0</span></div>
+
+  <div id="game"></div>
+
+  <div id="ad">
+    <p>📺 Watching ad... Please wait</p>
+    <!-- Replace below with real Monetag ad script -->
+    <script type="text/javascript">
+      setTimeout(() => {
+        alert("Ad finished! You earned coins.");
+        document.getElementById('ad').style.display = 'none';
+        addCoins(20);
+        startNewLevel();
+      }, 5000); // Simulate 5s ad
+    </script>
+  </div>
+
+  <script>
+    let tubes = [];
+    let colors = ['red', 'blue', 'green', 'yellow'];
+    let coinCount = 0;
+
+    const gameDiv = document.getElementById("game");
+    const coinDisplay = document.getElementById("coinCount");
+
+    function createTubes() {
+      gameDiv.innerHTML = '';
+      tubes = [];
+      for (let i = 0; i < 4; i++) {
+        let tube = document.createElement("div");
+        tube.className = "tube";
+        tube.dataset.index = i;
+        tube.onclick = () => handleTubeClick(i);
+        gameDiv.appendChild(tube);
+        tubes.push(tube);
+      }
+
+      // Fill tubes randomly
+      let balls = [];
+      colors.forEach(color => {
+        balls.push(color, color);
+      });
+
+      balls.sort(() => Math.random() - 0.5);
+      for (let i = 0; i < balls.length; i++) {
+        const ball = document.createElement("div");
+        ball.className = "ball";
+        ball.style.background = balls[i];
+        tubes[i % 4].appendChild(ball);
+      }
+    }
+
+    let selected = null;
+
+    function handleTubeClick(index) {
+      const tube = tubes[index];
+      const balls = tube.children;
+      if (selected === null) {
+        if (balls.length === 0) return;
+        selected = index;
+        tubes[index].style.border = '2px solid orange';
+      } else {
+        if (index === selected) {
+          tubes[index].style.border = '2px solid #00796b';
+          selected = null;
+          return;
+        }
+
+        const fromTube = tubes[selected];
+        const toTube = tubes[index];
+
+        const fromBalls = fromTube.children;
+        const toBalls = toTube.children;
+
+        if (fromBalls.length === 0 || toBalls.length >= 4) return;
+
+        const ballToMove = fromBalls[fromBalls.length - 1];
+        if (toBalls.length === 0 || ballToMove.style.background === toBalls[toBalls.length - 1].style.background) {
+          toTube.appendChild(ballToMove);
+          fromTube.style.border = '2px solid #00796b';
+          selected = null;
+          checkWin();
+        } else {
+          fromTube.style.border = '2px solid #00796b';
+          selected = null;
+        }
+      }
+    }
+
+    function checkWin() {
+      let won = tubes.every(tube => {
+        if (tube.children.length === 0) return true;
+        const color = tube.children[0].style.background;
+        return Array.from(tube.children).every(ball => ball.style.background === color);
+      });
+
+      if (won) {
+        showAd(); // simulate ad between levels
+      }
+    }
+    function showAd() {
+      document.getElementById("ad").style.display = 'block';
+    }
+
+    function addCoins(amount) {
+      coinCount += amount;
+      coinDisplay.innerText = coinCount;
+    }
+
+    function startNewLevel() {
+      createTubes();
+    }
+
+    createTubes();
+  </script>
+</body>
+</html>
