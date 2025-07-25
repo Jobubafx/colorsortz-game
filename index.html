@@ -6,14 +6,14 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f9f9f9;
       text-align: center;
+      transition: background 0.4s;
     }
     #game {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      margin: 20px;
+      margin: 10px;
     }
     .tube {
       width: 60px;
@@ -33,9 +33,9 @@
       margin: 2px 0;
       border-radius: 6px;
     }
-    #coin, #level, #message {
-      font-size: 18px;
-      margin: 8px;
+    #coin, #level, #timer, #message {
+      font-size: 16px;
+      margin: 5px;
     }
     #ad {
       margin: 20px auto;
@@ -48,81 +48,114 @@
       font-weight: bold;
     }
     button {
+      margin: 4px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: bold;
+      background: #00897b;
+      color: white;
+    }
+    select {
+      padding: 5px;
       margin: 5px;
     }
   </style>
 </head>
 <body>
-  <h2>Color Sort Game 🎨</h2>
-
-  <!-- 🎵 Sounds -->
-  <audio id="move-sound" src="https://www.soundjay.com/button/button-3.mp3"></audio>
-  <audio id="win-sound" src="https://www.soundjay.com/button/button-4.mp3"></audio>
-
-  <div id="coin">Coins: 0</div>
-  <div id="level">Level: 1</div>
+  <h2>🎮 Color Sort Game</h2>
+  <div><b id="usernameLabel">👤 Player:</b> <span id="usernameDisplay"></span></div>
+  <div id="coin">💰 Coins: 0</div>
+  <div id="level">📊 Level: 1</div>
+  <div id="timer">⏱️ Time: 0s | Best: --</div>
   <div id="message"></div>
+
   <div id="game"></div>
 
   <!-- Controls -->
   <button onclick="startNewLevel()">🔁 Restart</button>
-  <button onclick="skipLevel()">⏭ Skip (Watch Ad)</button>
+  <button onclick="skipLevel()">📺 Skip (Watch Ad)</button>
   <button onclick="buySkip()">💰 Skip (10 Coins)</button>
+  <button onclick="buyUndo()">↩️ Undo (5 Coins)</button>
 
+  <!-- Shop -->
+  <div>
+    <label for="themeSelect">🎨 Theme:</label>
+    <select id="themeSelect" onchange="changeTheme()">
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+      <option value="beach">Beach</option>
+      <option value="sunset">Sunset</option>
+      <option value="forest">Forest</option>
+    </select>
+  </div>
+
+  <!-- Ads Simulation -->
   <div id="ad">📺 Watching Ad...</div>
 
+  <!-- Sounds -->
+  <audio id="move-sound" src="https://www.soundjay.com/button/button-3.mp3"></audio>
+  <audio id="win-sound" src="https://www.soundjay.com/button/button-4.mp3"></audio>
+
   <script>
-    let coins = 0;
     let tubes = [];
     let selectedTube = null;
     let currentLevel = 1;
+    let coins = 0;
+    let startTime;
+    let bestTime = null;
+    let moveHistory = [];
+    let username = '';
+
+    const hardcodedLevels = {
+      1: [0,0,1,1,2,2],
+      2: [0,1,2,0,1,2,3,3],
+      3: [0,1,1,2,3,2,0,3],
+    };
+
+    const themes = {
+      light: '#f9f9f9',
+      dark: '#1e1e1e',
+      beach: '#FFF8DC',
+      sunset: '#FFCCBC',
+      forest: '#C8E6C9'
+    };
+
+    function askUsername() {
+      username = localStorage.getItem('username') || prompt("Enter your name:");
+      if (username) {
+        localStorage.setItem('username', username);
+        document.getElementById("usernameDisplay").innerText = username;
+      }
+    }
 
     function saveProgress() {
       localStorage.setItem('coins', coins);
       localStorage.setItem('level', currentLevel);
+      localStorage.setItem('theme', document.getElementById('themeSelect').value);
+      if (bestTime !== null) localStorage.setItem('bestTime', bestTime);
     }
 
     function loadProgress() {
       coins = parseInt(localStorage.getItem('coins')) || 0;
       currentLevel = parseInt(localStorage.getItem('level')) || 1;
+      bestTime = parseFloat(localStorage.getItem('bestTime')) || null;
+      const theme = localStorage.getItem('theme') || 'light';
+      document.getElementById('themeSelect').value = theme;
+      changeTheme();
     }
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
+    function updateDisplay() {
+      document.getElementById("coin").innerText = "💰 Coins: " + coins;
+      document.getElementById("level").innerText = "📊 Level: " + currentLevel;
+      updateTimer();
+    }
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+        [arr[i], arr[j]] = [arr[j], arr[i]];
       }
-    }
-
-    function addCoins(amount) {
-      coins += amount;
-      updateCoinsDisplay();
-      saveProgress();
-    }
-
-    function updateCoinsDisplay() {
-      document.getElementById("coin").innerText = "Coins: " + coins;
-    }
-
-    function updateLevelDisplay() {
-      document.getElementById("level").innerText = "Level: " + currentLevel;
-    }
-
-    function renderTubes() {
-      const game = document.getElementById("game");
-      game.innerHTML = '';
-      tubes.forEach((tube, i) => {
-        const tubeDiv = document.createElement("div");
-        tubeDiv.className = "tube";
-        tubeDiv.onclick = () => handleTubeClick(i);
-        tube.forEach(color => {
-          const colorDiv = document.createElement("div");
-          colorDiv.className = "color";
-          colorDiv.style.backgroundColor = getColor(color);
-          tubeDiv.appendChild(colorDiv);
-        });
-        game.appendChild(tubeDiv);
-      });
     }
 
     function getColor(num) {
@@ -130,58 +163,68 @@
       return colors[num % colors.length];
     }
 
+    function renderTubes() {
+      const game = document.getElementById("game");
+      game.innerHTML = '';
+      tubes.forEach((tube, i) => {
+        const div = document.createElement("div");
+        div.className = "tube";
+        div.onclick = () => handleTubeClick(i);
+        tube.forEach(color => {
+          const colorDiv = document.createElement("div");
+          colorDiv.className = "color";
+          colorDiv.style.backgroundColor = getColor(color);
+          div.appendChild(colorDiv);
+        });
+        game.appendChild(div);
+      });
+    }
+
     function startNewLevel() {
-      document.getElementById("game").innerHTML = '';
-      document.getElementById("message").innerText = '';
-      document.getElementById("ad").style.display = 'none';
+      document.getElementById("ad").style.display = "none";
+      document.getElementById("message").innerText = "";
+      moveHistory = [];
 
-      const numColors = Math.min(5 + Math.floor(currentLevel / 2), 10);
-      const numTubes = numColors + 2;
+      const levelData = hardcodedLevels[currentLevel];
+      const numColors = levelData ? Math.max(...levelData) + 1 : Math.min(5 + Math.floor(currentLevel / 2), 10);
+      const numTubes = levelData ? (numColors + 2) : (numColors + 2);
 
-      tubes = Array.from({ length: numTubes }, () => []);
-      let colors = [];
-      for (let i = 0; i < numColors; i++) {
-        for (let j = 0; j < 4; j++) {
-          colors.push(i);
+      let colors = levelData ? [...levelData] : [];
+      if (!levelData) {
+        for (let i = 0; i < numColors; i++) {
+          for (let j = 0; j < 4; j++) colors.push(i);
         }
+        shuffle(colors);
       }
 
-      shuffle(colors);
-
-      let index = 0;
+      tubes = Array.from({ length: numTubes }, () => []);
+      let idx = 0;
       for (let i = 0; i < numColors; i++) {
         for (let j = 0; j < 4; j++) {
-          tubes[i].push(colors[index++]);
+          tubes[i].push(colors[idx++]);
         }
       }
 
       renderTubes();
-      updateCoinsDisplay();
-      updateLevelDisplay();
+      updateDisplay();
+      startTime = Date.now();
     }
 
-    function checkWin() {
-      const won = tubes.every(tube =>
-        tube.length === 0 || (tube.length === 4 && tube.every(c => c === tube[0]))
-      );
-      if (won) {
-        document.getElementById("win-sound").play();
-        document.getElementById("message").innerText = "🎉 You win! +20 coins";
-        addCoins(20);
-        currentLevel++;
-        saveProgress();
-        updateLevelDisplay();
-        setTimeout(startNewLevel, 1500);
-      }
+    function updateTimer() {
+      const timeNow = Math.floor((Date.now() - startTime) / 1000);
+      document.getElementById("timer").innerText = ⏱️ Time: ${timeNow}s | Best: ${bestTime ? bestTime + 's' : '--'};
     }
+
+    setInterval(updateTimer, 1000);
 
     function handleTubeClick(i) {
       if (selectedTube === null) {
         if (tubes[i].length > 0) selectedTube = i;
       } else {
         if (i !== selectedTube && tubes[selectedTube].length > 0 && tubes[i].length < 4) {
-          const movingColor = tubes[selectedTube][tubes[selectedTube].length - 1];
-          if (tubes[i].length === 0 || tubes[i][tubes[i].length - 1] === movingColor) {
+          const color = tubes[selectedTube][tubes[selectedTube].length - 1];
+          if (tubes[i].length === 0 || tubes[i][tubes[i].length - 1] === color) {
+            moveHistory.push(JSON.stringify(tubes));
             tubes[i].push(tubes[selectedTube].pop());
             selectedTube = null;
             document.getElementById("move-sound").play();
@@ -194,23 +237,39 @@
       }
     }
 
-    function skipLevel() {
-      document.getElementById("ad").style.display = 'flex';
-      setTimeout(() => {
-        document.getElementById("ad").style.display = 'none';
-        alert("Ad finished! Level skipped. +10 coins");
-        addCoins(10);
+    function checkWin() {
+      const win = tubes.every(tube => tube.length === 0 || (tube.length === 4 && tube.every(c => c === tube[0])));
+      if (win) {
+        const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+        if (bestTime === null || timeTaken < bestTime) {
+          bestTime = timeTaken;
+        }
+        coins += 20;
         currentLevel++;
+        document.getElementById("win-sound").play();
+        document.getElementById("message").innerText = 🎉 You win! +20 coins;
+        saveProgress();
+        setTimeout(startNewLevel, 1500);
+      }
+    }
+
+    function skipLevel() {
+      document.getElementById("ad").style.display = "flex";
+      setTimeout(() => {
+        document.getElementById("ad").style.display = "none";
+        coins += 10;
+        currentLevel++;
+        alert("Ad finished! +10 coins & Level Skipped");
         saveProgress();
         startNewLevel();
-      }, 5000);
+      }, 4000);
     }
 
     function buySkip() {
       if (coins >= 10) {
         coins -= 10;
-        alert("Level skipped using coins!");
         currentLevel++;
+        alert("Level skipped using coins!");
         saveProgress();
         startNewLevel();
       } else {
@@ -218,8 +277,27 @@
       }
     }
 
-    // 🔁 Game start
+    function buyUndo() {
+      if (coins >= 5 && moveHistory.length > 0) {
+        coins -= 5;
+        tubes = JSON.parse(moveHistory.pop());
+        renderTubes();
+        updateDisplay();
+      } else {
+        alert("Undo not available!");
+      }
+    }
+
+    function changeTheme() {
+      const theme = document.getElementById('themeSelect').value;
+      document.body.style.background = themes[theme];
+      saveProgress();
+    }
+
+    // Init game
+    askUsername();
     loadProgress();
+    updateDisplay();
     startNewLevel();
   </script>
 </body>
