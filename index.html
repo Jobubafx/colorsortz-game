@@ -58,7 +58,8 @@
   </style>
 </head>
 <body>
-  <h1>🎨 Color Sort Game</h1>
+  <h1>🎨 Color Sortz</h1>
+  
   <div id="coins">💰 Coins: <span id="coinCount">0</span></div>
 
   <div id="game"></div>
@@ -77,7 +78,7 @@
       setTimeout(() => {
         alert("Ad finished! You earned coins.");
         document.getElementById('ad').style.display = 'none';
-        addCoins(20);
+        addCoins(5);
         startNewLevel();
       }, 5000); // Simulate 5s ad
     </script>
@@ -87,14 +88,14 @@
     let tubes = [];
     let colors = ['red', 'blue', 'green', 'yellow'];
     let coinCount = 0;
-
+let currentLevel = 1;
     const gameDiv = document.getElementById("game");
     const coinDisplay = document.getElementById("coinCount");
 
     function createTubes() {
       gameDiv.innerHTML = '';
       tubes = [];
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 3; i++) {
         let tube = document.createElement("div");
         tube.className = "tube";
         tube.dataset.index = i;
